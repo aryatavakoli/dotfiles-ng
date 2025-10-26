@@ -28,6 +28,19 @@ banner() {
 }
 
 # ============================================================
+# Sudo Access Check
+# ============================================================
+check_sudo() {
+    info "Requesting sudo access..."
+    if ! sudo -v; then
+        error "Sudo access is required for installation"
+    fi
+    
+    # Keep sudo access alive in the background
+    while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
+}
+
+# ============================================================
 # OS Detection
 # ============================================================
 is_mac() { [[ "$OSTYPE" == "darwin"* ]]; }
@@ -104,11 +117,15 @@ copy_dotfiles() {
     
     info "Copying dotfiles to $dest..."
     
-    # Create destination directory
-    mkdir -p "$dest"
+    # Clean up existing destination if it exists
+    if [ -d "$dest" ]; then
+        sudo rm -rf "$dest"
+    fi
     
-    # Copy files (chezmoi will handle exclusions via .chezmoiignore)
-    cp -r "$src/." "$dest/"
+    # Create destination directory and set permissions
+    sudo mkdir -p "$dest"
+    sudo cp -r "$src/." "$dest/"
+    sudo chown -R "$USER:$USER" "$dest"
     
     # Make scripts executable
     find "$dest/.chezmoiscripts" -name "*.tmpl" -type f -exec chmod +x {} \; 2>/dev/null || true
@@ -151,17 +168,30 @@ setup_shell() {
     # Skip if already using zsh
     [[ "$SHELL" =~ zsh ]] && return 0
     
-    # Check if zsh is installed
+    info "Setting up zsh as default shell..."
+    
+    # Install zsh if not present
     if ! command -v zsh &>/dev/null; then
-        warn "zsh not installed. Install it using your package manager."
+        info "Installing zsh..."
+        if is_mac; then
+            brew install zsh
+        else
+            sudo apt-get update
+            sudo apt-get install -y zsh
+        fi
+    fi
+    
+    # Verify zsh installation
+    if ! command -v zsh &>/dev/null; then
+        error "Failed to install zsh"
         return 1
     fi
     
-    info "Changing default shell to zsh..."
     local zsh_path="$(command -v zsh)"
+    info "Using zsh at: $zsh_path"
     
     if is_mac; then
-        chsh -s "$zsh_path"
+        sudo chsh -s "$zsh_path" "$USER"
     else
         # Add to /etc/shells if needed
         if ! grep -qxF "$zsh_path" /etc/shells; then
@@ -170,6 +200,7 @@ setup_shell() {
         sudo chsh -s "$zsh_path" "$USER"
     fi
     
+    info "✓ Default shell changed to zsh"
     warn "Log out and back in for shell change to take effect"
 }
 
@@ -180,6 +211,7 @@ main() {
     local os=$(detect_os)
     
     banner
+    check_sudo
     info "Detected OS: $os"
     echo
     
