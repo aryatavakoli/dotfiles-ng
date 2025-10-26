@@ -125,7 +125,7 @@ copy_dotfiles() {
     # Create destination directory and set permissions
     sudo mkdir -p "$dest"
     sudo cp -r "$src/." "$dest/"
-    sudo chown -R "$USER:$USER" "$dest"
+    sudo chown -R "$USER:$(id -gn)" "$dest"
     
     # Make scripts executable
     find "$dest/.chezmoiscripts" -name "*.tmpl" -type f -exec chmod +x {} \; 2>/dev/null || true
