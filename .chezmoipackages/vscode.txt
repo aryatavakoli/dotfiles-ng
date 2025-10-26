@@ -1,0 +1,20 @@
+# Git & Version Control
+eamodio.gitlens
+
+# Language Support
+redhat.vscode-yaml
+hashiCorp.terraform
+
+# Remote Development
+ms-vscode-remote.vscode-remote-extensionpack
+ms-vscode-remote.remote-ssh
+ms-vscode.codespaces
+
+# Containers & Cloud
+ms-azuretools.vscode-docker
+
+# AI & Productivity
+github.copilot
+
+# UI Enhancements
+oderwat.indent-rainbow

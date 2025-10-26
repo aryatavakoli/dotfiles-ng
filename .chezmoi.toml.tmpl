@@ -1,0 +1,16 @@
+# Chezmoi configuration
+# This file is templated and will be processed on apply
+
+[data]
+    name = "{{ .name }}"
+    email = "{{ .email }}"
+
+[diff]
+    pager = "cat"
+
+[merge]
+    command = "vimdiff"
+
+[edit]
+    command = "code"
+    args = ["--wait"]

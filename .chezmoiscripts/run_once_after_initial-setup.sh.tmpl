@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# One-time initial setup: Antigen plugin manager & Powerline fonts
+# This script runs only once after the first chezmoi apply
+
+set -e
+
+# ============================================================
+# Helpers
+# ============================================================
+is_mac() { [[ "$OSTYPE" == "darwin"* ]]; }
+is_linux() { [[ "$OSTYPE" == "linux"* ]]; }
+
+# ============================================================
+# Antigen Plugin Manager
+# ============================================================
+setup_antigen() {
+    local antigen_dir="$HOME/.local/share/antigen"
+    local antigen_file="$antigen_dir/antigen.zsh"
+    
+    if [[ -f "$antigen_file" ]]; then
+        echo "  ✓ Antigen already installed"
+        return 0
+    fi
+    
+    echo "  → Installing Antigen plugin manager..."
+    mkdir -p "$antigen_dir"
+    
+    if curl -fsSL git.io/antigen > "$antigen_file"; then
+        echo "  ✓ Antigen installed successfully"
+    else
+        echo "  ⚠️  Failed to install Antigen"
+        return 1
+    fi
+}
+
+# ============================================================
+# Powerline Fonts (MesloLGS NF)
+# ============================================================
+setup_fonts() {
+    local font_dir
+    
+    # Determine font directory based on OS
+    if is_mac; then
+        font_dir="$HOME/Library/Fonts"
+    elif is_linux; then
+        font_dir="$HOME/.local/share/fonts"
+    else
+        echo "  ⚠️  Unknown OS, skipping font installation"
+        return 0
+    fi
+    
+    # Check if fonts are already installed
+    if [[ -f "$font_dir/MesloLGS NF Regular.ttf" ]]; then
+        echo "  ✓ MesloLGS NF fonts already installed"
+        return 0
+    fi
+    
+    echo "  → Installing MesloLGS NF fonts for Powerlevel10k..."
+    mkdir -p "$font_dir"
+    
+    local base_url="https://github.com/romkatv/powerlevel10k-media/raw/master"
+    local variants=("Regular" "Bold" "Italic" "Bold Italic")
+    
+    for variant in "${variants[@]}"; do
+        local filename="MesloLGS NF ${variant}.ttf"
+        local url="${base_url}/${filename// /%20}"
+        
+        if curl -fsSL "$url" -o "$font_dir/$filename"; then
+            echo "    ✓ Installed $filename"
+        else
+            echo "    ⚠️  Failed to download $filename"
+        fi
+    done
+    
+    # Refresh font cache on Linux
+    if is_linux && command -v fc-cache &>/dev/null; then
+        echo "  → Refreshing font cache..."
+        fc-cache -f "$font_dir" 2>/dev/null || true
+    fi
+    
+    echo "  ✓ Font installation complete"
+}
+
+# ============================================================
+# Main
+# ============================================================
+main() {
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  Initial Setup (runs once)"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    
+    echo "📦 Setting up Antigen..."
+    setup_antigen
+    echo ""
+    
+    echo "🔤 Setting up fonts..."
+    setup_fonts
+    echo ""
+    
+    echo "✅ Initial setup complete!"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+}
+
+main "$@"
+

@@ -1,0 +1,11 @@
+# Development
+iterm2
+docker
+visual-studio-code
+
+# Browsers
+firefox
+
+# Media & Entertainment
+spotify
+vlc

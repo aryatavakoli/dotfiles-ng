@@ -1,0 +1,59 @@
+{
+    "editor.minimap.enabled": false,
+    "terminal.integrated.fontFamily": "MesloLGS NF",
+    "security.workspace.trust.untrustedFiles": "open",
+    "editor.inlineSuggest.enabled": true,
+    "telemetry.telemetryLevel": "off",
+    "window.restoreWindows": "none",
+    "window.newWindowDimensions": "maximized",
+    "workbench.editor.enablePreview": true,
+    "workbench.settings.editor": "json",
+    "workbench.settings.openDefaultSettings": true,
+    "workbench.settings.useSplitJSON": true,
+    "workbench.startupEditor": "newUntitledFile",
+    "workbench.panel.defaultLocation": "bottom",
+    "editor.bracketPairColorization.enabled": true,
+    "editor.detectIndentation": false,
+    "editor.fontSize": 13,
+    "editor.guides.bracketPairs": true,
+    "editor.multiCursorModifier": "ctrlCmd",
+    "editor.renderControlCharacters": true,
+    "editor.showFoldingControls": "always",
+    "editor.snippetSuggestions": "top",
+    "redhat.telemetry.enabled": false,
+    "terraform.languageServer.tcp.port": 0,
+    "[terraform]": {
+        "editor.defaultFormatter": "hashicorp.terraform",
+        "editor.formatOnSave": true,
+        "editor.formatOnSaveMode": "file"
+    },
+    "[terraform-vars]": {
+        "editor.defaultFormatter": "hashicorp.terraform",
+        "editor.formatOnSave": true,
+        "editor.formatOnSaveMode": "file"
+    },
+    "git.autofetch": true,
+    "explorer.confirmDelete": false,
+    "terminal.integrated.defaultProfile.osx": "zsh",
+    "update.showReleaseNotes": false,
+    "git.ignoreRebaseWarning": true,
+    "aws.telemetry": false,
+    "explorer.confirmDragAndDrop": false,
+    "editor.renderWhitespace": "all",
+    "docker.extension.enableComposeLanguageServer": false,
+    "diffEditor.ignoreTrimWhitespace": false,
+    "[dockercompose]": {
+        "editor.insertSpaces": true,
+        "editor.tabSize": 2,
+        "editor.autoIndent": "advanced",
+        "editor.quickSuggestions": {
+            "other": true,
+            "comments": false,
+            "strings": true
+        },
+        "editor.defaultFormatter": "redhat.vscode-yaml"
+    },
+    "[github-actions-workflow]": {
+        "editor.defaultFormatter": "redhat.vscode-yaml"
+    }
+}

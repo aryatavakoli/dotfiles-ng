@@ -1,0 +1,381 @@
+#!/usr/bin/env bash
+# Runs whenever package lists change to keep installed packages in sync
+# Package list hashes (chezmoi detects changes and reruns):
+# brew.txt hash: {{ include ".chezmoipackages/brew.txt" | sha256sum }}
+# cask.txt hash: {{ include ".chezmoipackages/cask.txt" | sha256sum }}
+# vscode.txt hash: {{ include ".chezmoipackages/vscode.txt" | sha256sum }}
+
+# Don't exit on errors - we want to try installing all packages
+set +e
+
+PACKAGE_DIR="{{ .chezmoi.sourceDir }}/.chezmoipackages"
+STATE_DIR="$HOME/.cache/chezmoi-packages"
+mkdir -p "$STATE_DIR"
+
+# ============================================================
+# Helpers
+# ============================================================
+command_exists() {
+    command -v "$1" &>/dev/null
+}
+
+is_mac() {
+    [[ "$OSTYPE" == "darwin"* ]]
+}
+
+is_linux() {
+    [[ "$OSTYPE" == "linux-gnu"* ]]
+}
+
+# ============================================================
+# Homebrew Installation
+# ============================================================
+install_homebrew() {
+    if command_exists brew; then
+        echo "  ✓ Homebrew already installed"
+        return 0
+    fi
+    
+    echo "  → Installing Homebrew..."
+    
+    if is_linux; then
+        # Linux installation
+        NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || true
+        
+        # Add to PATH for current session
+        if [[ -d /home/linuxbrew/.linuxbrew ]]; then
+            eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+        fi
+    elif is_mac; then
+        # macOS installation
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || true
+    fi
+    
+    if command_exists brew; then
+        echo "  ✓ Homebrew installed successfully"
+        return 0
+    else
+        echo "  ⚠️  Failed to install Homebrew"
+        return 0  # Don't fail the script
+    fi
+}
+
+# ============================================================
+# Homebrew Formulae
+# ============================================================
+install_brew_packages() {
+    local brew_file="$PACKAGE_DIR/brew.txt"
+    local state_file="$STATE_DIR/brew-managed.txt"
+    
+    if ! command_exists brew; then
+        echo "  ⚠️  Homebrew not available, skipping packages"
+        return 0
+    fi
+    
+    if [[ ! -f "$brew_file" ]]; then
+        echo "  ⚠️  $brew_file not found, skipping"
+        return 0
+    fi
+    
+    echo "  → Syncing Homebrew formulae..."
+    
+    local installed=0
+    local skipped=0
+    local failed=0
+    local removed=0
+    
+    # Get list of desired packages
+    local -a desired_packages
+    while IFS= read -r package || [[ -n "$package" ]]; do
+        # Skip empty lines and comments
+        [[ -z "$package" || "$package" =~ ^[[:space:]]*# ]] && continue
+        desired_packages+=("$package")
+    done < "$brew_file"
+    
+    # Load previously managed packages
+    local -a managed_packages
+    if [[ -f "$state_file" ]]; then
+        while IFS= read -r package || [[ -n "$package" ]]; do
+            [[ -z "$package" ]] && continue
+            managed_packages+=("$package")
+        done < "$state_file"
+    fi
+    
+    # Install missing packages
+    for package in "${desired_packages[@]}"; do
+        if brew list "$package" &>/dev/null; then
+            echo "    ✓ $package"
+            ((skipped++))
+        else
+            echo -n "    → Installing $package... "
+            if brew install "$package" &>/dev/null; then
+                echo "✓"
+                ((installed++))
+            else
+                echo "✗"
+                ((failed++))
+            fi
+        fi
+    done
+    
+    # Remove packages that were managed but are no longer in the list
+    if [[ ${#managed_packages[@]} -gt 0 ]]; then
+        echo ""
+        echo "  → Checking for packages to remove..."
+        
+        for managed_pkg in "${managed_packages[@]}"; do
+            local should_remove=true
+            for desired_pkg in "${desired_packages[@]}"; do
+                if [[ "$managed_pkg" == "$desired_pkg" ]]; then
+                    should_remove=false
+                    break
+                fi
+            done
+            
+            if $should_remove && brew list "$managed_pkg" &>/dev/null; then
+                echo -n "    → Removing $managed_pkg... "
+                if brew uninstall "$managed_pkg" &>/dev/null; then
+                    echo "✓"
+                    ((removed++))
+                else
+                    echo "✗"
+                fi
+            fi
+        done
+    fi
+    
+    # Save current managed packages list
+    printf "%s\n" "${desired_packages[@]}" > "$state_file"
+    
+    echo ""
+    echo "  Summary: $installed installed, $skipped already present, $failed failed, $removed removed"
+}
+
+# ============================================================
+# Homebrew Casks (macOS only)
+# ============================================================
+install_cask_packages() {
+    if ! is_mac; then
+        echo "  ⚠️  Casks are macOS only, skipping"
+        return 0
+    fi
+    
+    local cask_file="$PACKAGE_DIR/cask.txt"
+    local state_file="$STATE_DIR/cask-managed.txt"
+    
+    if [[ ! -f "$cask_file" ]]; then
+        echo "  ⚠️  $cask_file not found, skipping"
+        return 0
+    fi
+    
+    echo "  → Syncing Homebrew casks..."
+    
+    local installed=0
+    local skipped=0
+    local failed=0
+    local removed=0
+    
+    # Get list of desired casks
+    local -a desired_casks
+    while IFS= read -r cask || [[ -n "$cask" ]]; do
+        # Skip empty lines and comments
+        [[ -z "$cask" || "$cask" =~ ^[[:space:]]*# ]] && continue
+        desired_casks+=("$cask")
+    done < "$cask_file"
+    
+    # Load previously managed casks
+    local -a managed_casks
+    if [[ -f "$state_file" ]]; then
+        while IFS= read -r cask || [[ -n "$cask" ]]; do
+            [[ -z "$cask" ]] && continue
+            managed_casks+=("$cask")
+        done < "$state_file"
+    fi
+    
+    # Install missing casks
+    for cask in "${desired_casks[@]}"; do
+        if brew list --cask "$cask" &>/dev/null; then
+            echo "    ✓ $cask"
+            ((skipped++))
+        else
+            echo -n "    → Installing $cask... "
+            if brew install --cask "$cask" &>/dev/null; then
+                echo "✓"
+                ((installed++))
+            else
+                echo "✗"
+                ((failed++))
+            fi
+        fi
+    done
+    
+    # Remove casks that were managed but are no longer in the list
+    if [[ ${#managed_casks[@]} -gt 0 ]]; then
+        echo ""
+        echo "  → Checking for casks to remove..."
+        
+        for managed_cask in "${managed_casks[@]}"; do
+            local should_remove=true
+            for desired_cask in "${desired_casks[@]}"; do
+                if [[ "$managed_cask" == "$desired_cask" ]]; then
+                    should_remove=false
+                    break
+                fi
+            done
+            
+            if $should_remove && brew list --cask "$managed_cask" &>/dev/null; then
+                echo -n "    → Removing $managed_cask... "
+                if brew uninstall --cask "$managed_cask" &>/dev/null; then
+                    echo "✓"
+                    ((removed++))
+                else
+                    echo "✗"
+                fi
+            fi
+        done
+    fi
+    
+    # Save current managed casks list
+    printf "%s\n" "${desired_casks[@]}" > "$state_file"
+    
+    echo ""
+    echo "  Summary: $installed installed, $skipped already present, $failed failed, $removed removed"
+}
+
+# ============================================================
+# VS Code Extensions
+# ============================================================
+install_vscode_extensions() {
+    if ! command_exists code; then
+        echo "  ⚠️  VS Code CLI not found, skipping extensions"
+        return 0
+    fi
+    
+    local vscode_file="$PACKAGE_DIR/vscode.txt"
+    local state_file="$STATE_DIR/vscode-managed.txt"
+    
+    if [[ ! -f "$vscode_file" ]]; then
+        echo "  ⚠️  $vscode_file not found, skipping"
+        return 0
+    fi
+    
+    echo "  → Syncing VS Code extensions..."
+    
+    local installed=0
+    local skipped=0
+    local failed=0
+    local removed=0
+    
+    # Get list of desired extensions
+    local -a desired_extensions
+    while IFS= read -r extension || [[ -n "$extension" ]]; do
+        # Skip empty lines and comments
+        [[ -z "$extension" || "$extension" =~ ^[[:space:]]*# ]] && continue
+        desired_extensions+=("$extension")
+    done < "$vscode_file"
+    
+    # Load previously managed extensions
+    local -a managed_extensions
+    if [[ -f "$state_file" ]]; then
+        while IFS= read -r extension || [[ -n "$extension" ]]; do
+            [[ -z "$extension" ]] && continue
+            managed_extensions+=("$extension")
+        done < "$state_file"
+    fi
+    
+    # Get installed extensions once
+    local installed_extensions
+    installed_extensions=$(code --list-extensions 2>/dev/null | tr '[:upper:]' '[:lower:]')
+    
+    # Install missing extensions
+    for extension in "${desired_extensions[@]}"; do
+        local ext_lower
+        ext_lower=$(echo "$extension" | tr '[:upper:]' '[:lower:]')
+        
+        if echo "$installed_extensions" | grep -qi "^${ext_lower}$"; then
+            echo "    ✓ $extension"
+            ((skipped++))
+        else
+            echo -n "    → Installing $extension... "
+            if code --install-extension "$extension" --force &>/dev/null; then
+                echo "✓"
+                ((installed++))
+            else
+                echo "✗"
+                ((failed++))
+            fi
+        fi
+    done
+    
+    # Remove extensions that were managed but are no longer in the list
+    if [[ ${#managed_extensions[@]} -gt 0 ]]; then
+        echo ""
+        echo "  → Checking for extensions to remove..."
+        
+        for managed_ext in "${managed_extensions[@]}"; do
+            local should_remove=true
+            local managed_lower
+            managed_lower=$(echo "$managed_ext" | tr '[:upper:]' '[:lower:]')
+            
+            for desired_ext in "${desired_extensions[@]}"; do
+                local desired_lower
+                desired_lower=$(echo "$desired_ext" | tr '[:upper:]' '[:lower:]')
+                if [[ "$managed_lower" == "$desired_lower" ]]; then
+                    should_remove=false
+                    break
+                fi
+            done
+            
+            if $should_remove; then
+                local ext_lower
+                ext_lower=$(echo "$managed_ext" | tr '[:upper:]' '[:lower:]')
+                if echo "$installed_extensions" | grep -qi "^${ext_lower}$"; then
+                    echo -n "    → Removing $managed_ext... "
+                    if code --uninstall-extension "$managed_ext" &>/dev/null; then
+                        echo "✓"
+                        ((removed++))
+                    else
+                        echo "✗"
+                    fi
+                fi
+            fi
+        done
+    fi
+    
+    # Save current managed extensions list
+    printf "%s\n" "${desired_extensions[@]}" > "$state_file"
+    
+    echo ""
+    echo "  Summary: $installed installed, $skipped already present, $failed failed, $removed removed"
+}
+
+# ============================================================
+# Main
+# ============================================================
+main() {
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  Package Sync (runs on changes)"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    
+    echo "🍺 Setting up Homebrew..."
+    install_homebrew
+    echo ""
+    
+    echo "📦 Installing Homebrew packages..."
+    install_brew_packages
+    echo ""
+    
+    echo "🍎 Installing Homebrew casks..."
+    install_cask_packages
+    echo ""
+    
+    echo "💻 Installing VS Code extensions..."
+    install_vscode_extensions
+    echo ""
+    
+    echo "✅ Package sync complete!"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+}
+
+main "$@"

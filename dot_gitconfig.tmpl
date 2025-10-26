@@ -1,0 +1,73 @@
+[user]
+	name = {{ .name }}
+	email = {{ .email }}
+
+[init]
+	defaultBranch = main
+
+[core]
+	excludesfile = ~/.gitignore
+	attributesfile = ~/.gitattributes
+	untrackedCache = true
+	trustctime = false
+	whitespace = space-before-tab,-indent-with-non-tab,trailing-space
+
+[apply]
+	whitespace = fix
+
+[branch]
+	sort = -committerdate
+
+[commit]
+	gpgsign = false
+
+[diff]
+	renames = copies
+
+[diff "bin"]
+	textconv = hexdump -v -C
+
+[merge]
+	log = true
+
+[pull]
+	rebase = true
+
+[push]
+	default = simple
+	followTags = true
+	autoSetupRemote = true
+
+[help]
+	autocorrect = 1
+
+[alias]
+	# Short status
+	s = status -sb
+	
+	# Commit
+	c = commit
+	cm = commit -m
+	ca = commit --amend
+	
+	# Checkout
+	co = checkout
+	cob = checkout -b
+	
+	# Branch
+	br = branch
+	brd = branch -d
+	
+	# Log
+	l = log --oneline --graph --decorate
+	la = log --oneline --graph --decorate --all
+	
+	# Diff
+	d = diff
+	ds = diff --staged
+	
+	# Stash
+	st = stash
+	stp = stash pop
+	stl = stash list
+

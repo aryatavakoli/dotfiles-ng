@@ -1,0 +1,17 @@
+README.md
+LICENSE
+.git/
+.gitignore
+*.swp
+*.bak
+.DS_Store
+*~
+
+# Development and testing
+Dockerfile
+install.sh
+
+{{ if ne .chezmoi.os "darwin" }}
+Library/**
+{{ end }}
+

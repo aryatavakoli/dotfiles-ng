@@ -1,0 +1,31 @@
+# Essential tools
+nano
+coreutils
+git
+
+# Shell enhancements
+tree
+bat
+fd
+fzf
+eza
+mcfly
+zoxide
+
+# Network tools
+curl
+curlie
+doggo
+awscli
+
+# Kubernetes tools
+kubectl
+krew
+kubectx
+helm
+kubeseal
+k9s
+
+# Infrastructure tools
+tenv
+jq
