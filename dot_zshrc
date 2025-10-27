@@ -30,7 +30,8 @@ else
 fi
 
 # ============================================================
-# Additional Configuration (aliases, functions)
+# Additional Configuration (aliases, functions, p10k)
 # ============================================================
 [[ -f ~/.config/zsh/aliases.zsh ]] && source ~/.config/zsh/aliases.zsh
 [[ -f ~/.config/zsh/functions.zsh ]] && source ~/.config/zsh/functions.zsh
+[[ -f ~/.config/zsh/p10k.zsh ]] && source ~/.config/zsh/p10k.zsh
