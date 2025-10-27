@@ -39,7 +39,3 @@ export TENV_AUTO_INSTALL=true
 export GODEBUG=asyncpreemptoff=1
 export ZOXIDE_CMD_OVERRIDE=cd
 
-# Optimize shell startup
-export LANG=en_US.UTF-8
-export LC_ALL=en_US.UTF-8
-
