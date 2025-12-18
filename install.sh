@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
-# Dotfiles installer for macOS and Linux
-set -e
+# Dotfiles installer for macOS, Linux, and WSL (SAFE VERSION)
+set -euo pipefail
+
+# ============================================================
+# Guards
+# ============================================================
+if [[ "$(id -u)" -eq 0 ]]; then
+    echo "✗ Do not run this script as root"
+    exit 1
+fi
 
 # ============================================================
 # Configuration
 # ============================================================
-# Leave empty to prompt during installation
 USER_NAME="${USER_NAME:-}"
 USER_EMAIL="${USER_EMAIL:-}"
 
@@ -15,9 +22,9 @@ USER_EMAIL="${USER_EMAIL:-}"
 C_RED='\033[0;31m'; C_GREEN='\033[0;32m'; C_YELLOW='\033[1;33m'
 C_BLUE='\033[0;34m'; C_NC='\033[0m'
 
-info() { echo -e "${C_GREEN}▸${C_NC} $1"; }
-warn() { echo -e "${C_YELLOW}⚠${C_NC} $1"; }
-error() { echo -e "${C_RED}✗${C_NC} $1"; exit 1; }
+info()  { echo -e "${C_GREEN}▸${C_NC} $*"; }
+warn()  { echo -e "${C_YELLOW}⚠${C_NC} $*"; }
+error() { echo -e "${C_RED}✗${C_NC} $*"; exit 1; }
 
 banner() {
     echo -e "${C_BLUE}"
@@ -28,34 +35,17 @@ banner() {
 }
 
 # ============================================================
-# Sudo Access Check
-# ============================================================
-check_sudo() {
-    info "Requesting sudo access..."
-    if ! sudo -v; then
-        error "Sudo access is required for installation"
-    fi
-    
-    # Keep sudo access alive in the background
-    while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
-}
-
-# ============================================================
 # OS Detection
 # ============================================================
-is_mac() { [[ "$OSTYPE" == "darwin"* ]]; }
-is_linux() { [[ "$OSTYPE" == "linux"* ]]; }
-is_wsl() { grep -qi microsoft /proc/version 2>/dev/null; }
+is_mac()   { [[ "$OSTYPE" == darwin* ]]; }
+is_linux() { [[ "$OSTYPE" == linux* ]]; }
+is_wsl()   { grep -qi microsoft /proc/version 2>/dev/null; }
 
 detect_os() {
-    if is_mac; then
-        echo "macos"
-    elif is_wsl; then
-        echo "wsl"
-    elif is_linux; then
-        echo "linux"
-    else
-        error "Unsupported OS: $OSTYPE"
+    if is_mac; then echo macos
+    elif is_wsl; then echo wsl
+    elif is_linux; then echo linux
+    else error "Unsupported OS: $OSTYPE"
     fi
 }
 
@@ -63,12 +53,16 @@ detect_os() {
 # Install chezmoi
 # ============================================================
 install_chezmoi() {
-    command -v chezmoi &>/dev/null && return 0
-    
+    if command -v chezmoi >/dev/null; then
+        return
+    fi
+
     info "Installing chezmoi..."
-    if is_mac && command -v brew &>/dev/null; then
+
+    if is_mac && command -v brew >/dev/null; then
         brew install chezmoi
     else
+        mkdir -p "$HOME/.local/bin"
         sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
         export PATH="$HOME/.local/bin:$PATH"
     fi
@@ -78,101 +72,79 @@ install_chezmoi() {
 # Configure chezmoi
 # ============================================================
 configure_chezmoi() {
-    # Skip if config already exists
-    if [[ -f "$HOME/.config/chezmoi/chezmoi.toml" ]]; then
+    local cfg="$HOME/.config/chezmoi/chezmoi.toml"
+
+    if [[ -f "$cfg" ]]; then
         info "Using existing chezmoi config"
-        return 0
+        return
     fi
-    
-    # Get user info (prompt if not set)
-    local user_name="${USER_NAME}"
-    local user_email="${USER_EMAIL}"
-    
-    if [[ -z "$user_name" ]]; then
-        echo
-        read -p "Name: " user_name
-    fi
-    
-    if [[ -z "$user_email" ]]; then
-        read -p "Email: " user_email
-        echo
-    fi
-    
-    # Create config
-    mkdir -p "$HOME/.config/chezmoi"
-    cat > "$HOME/.config/chezmoi/chezmoi.toml" <<EOF
+
+    [[ -z "$USER_NAME"  ]] && read -rp "Name: "  USER_NAME
+    [[ -z "$USER_EMAIL" ]] && read -rp "Email: " USER_EMAIL
+
+    mkdir -p "$(dirname "$cfg")"
+
+    cat >"$cfg" <<EOF
 [data]
-    name = "$user_name"
-    email = "$user_email"
+name = "$USER_NAME"
+email = "$USER_EMAIL"
 EOF
-    info "Config created at ~/.config/chezmoi/chezmoi.toml"
+
+    info "Created chezmoi config"
 }
 
 # ============================================================
-# Copy dotfiles
+# Copy dotfiles (NO SUDO)
 # ============================================================
 copy_dotfiles() {
-    local src="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    local dest="$HOME/.local/share/chezmoi"
-    
-    info "Copying dotfiles to $dest..."
-    
-    # Clean up existing destination if it exists
-    if [ -d "$dest" ]; then
-        sudo rm -rf "$dest"
+    local src dest
+    src="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    dest="$HOME/.local/share/chezmoi"
+
+    info "Installing dotfiles to $dest"
+
+    rm -rf "$dest"
+    mkdir -p "$dest"
+    cp -R "$src/." "$dest/"
+
+    if [[ -d "$dest/.chezmoiscripts" ]]; then
+        find "$dest/.chezmoiscripts" -type f -name "*.tmpl" -exec chmod +x {} \;
     fi
-    
-    # Create destination directory and set permissions
-    sudo mkdir -p "$dest"
-    sudo cp -r "$src/." "$dest/"
-    sudo chown -R "$USER:$(id -gn)" "$dest"
-    
-    # Make scripts executable
-    find "$dest/.chezmoiscripts" -name "*.tmpl" -type f -exec chmod +x {} \; 2>/dev/null || true
-    
-    info "✓ Dotfiles copied"
-    
-    # Regenerate config from template to avoid warnings
-    info "Regenerating config from template..."
-    chezmoi init --force
-    info "✓ Config regenerated"
+
+    info "Dotfiles copied"
 }
 
 # ============================================================
-# Preview & Apply
+# Apply chezmoi
 # ============================================================
 apply_dotfiles() {
+    info "Initializing chezmoi from local source"
+    chezmoi init --force --source="$HOME/.local/share/chezmoi"
+
     echo
-    info "Reviewing changes..."
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    chezmoi diff
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    info "Previewing changes"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    chezmoi diff || true
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo
-    
-    read -p "Apply changes? (y/n) " -n 1 -r
+
+    read -rp "Apply changes? (y/n) " -n 1
     echo
-    
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        warn "Skipped. Run 'chezmoi apply -v' later."
-        exit 0
-    fi
-    
+    [[ "$REPLY" =~ ^[Yy]$ ]] || { warn "Skipped"; return; }
+
     chezmoi apply -v
-    info "✓ Dotfiles applied"
 }
 
 # ============================================================
-# Setup shell
+# Setup shell (system changes only here)
 # ============================================================
 setup_shell() {
-    # Skip if already using zsh
-    [[ "$SHELL" =~ zsh ]] && return 0
-    
-    info "Setting up zsh as default shell..."
-    
-    # Install zsh if not present
-    if ! command -v zsh &>/dev/null; then
-        info "Installing zsh..."
+    [[ "$SHELL" == *zsh ]] && return
+
+    info "Configuring zsh"
+
+    if ! command -v zsh >/dev/null; then
+        info "Installing zsh"
         if is_mac; then
             brew install zsh
         else
@@ -180,27 +152,16 @@ setup_shell() {
             sudo apt-get install -y zsh
         fi
     fi
-    
-    # Verify zsh installation
-    if ! command -v zsh &>/dev/null; then
-        error "Failed to install zsh"
-        return 1
+
+    local zsh_path
+    zsh_path="$(command -v zsh)"
+
+    if ! grep -qxF "$zsh_path" /etc/shells; then
+        echo "$zsh_path" | sudo tee -a /etc/shells >/dev/null
     fi
-    
-    local zsh_path="$(command -v zsh)"
-    info "Using zsh at: $zsh_path"
-    
-    if is_mac; then
-        sudo chsh -s "$zsh_path" "$USER"
-    else
-        # Add to /etc/shells if needed
-        if ! grep -qxF "$zsh_path" /etc/shells; then
-            echo "$zsh_path" | sudo tee -a /etc/shells >/dev/null
-        fi
-        sudo chsh -s "$zsh_path" "$USER"
-    fi
-    
-    info "✓ Default shell changed to zsh"
+
+    sudo chsh -s "$zsh_path" "$USER"
+
     warn "Log out and back in for shell change to take effect"
 }
 
@@ -208,25 +169,18 @@ setup_shell() {
 # Main
 # ============================================================
 main() {
-    local os=$(detect_os)
-    
     banner
-    check_sudo
-    info "Detected OS: $os"
+    info "Detected OS: $(detect_os)"
     echo
-    
+
     install_chezmoi
     configure_chezmoi
     copy_dotfiles
     apply_dotfiles
     setup_shell
-    
+
     echo
-    echo -e "${C_GREEN}✓ Setup complete!${C_NC}"
-    echo
-    info "Next steps:"
-    info "  1. exec zsh (or restart terminal)"
-    info "  2. Packages will sync on first startup"
+    info "✓ Setup complete"
     echo
 }
 
