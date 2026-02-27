@@ -1,46 +1,34 @@
-FROM ubuntu:22.04
+FROM ubuntu:latest
 
 # Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install basic dependencies (including zsh for testing)
+# Install minimal dependencies needed for install.sh to work
+# (mimicking a fresh machine)
 RUN apt-get update && apt-get install -y \
     curl \
     git \
-    build-essential \
-    procps \
-    file \
-    zsh \
     sudo \
-    rsync \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Create a test user with sudo privileges
-RUN useradd -m -s /bin/zsh testuser && \
+# Create a test user with sudo privileges (no password)
+RUN useradd -m -s /bin/bash testuser && \
     echo "testuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
 USER testuser
 WORKDIR /home/testuser
 
-# Copy chezmoi dotfiles
-COPY --chown=testuser:testuser . /home/testuser/dotfiles-src/
+# Copy the entire dotfiles repo
+COPY --chown=testuser:testuser . /home/testuser/dotfiles/
 
-# Install chezmoi
-RUN sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
-ENV PATH="/home/testuser/.local/bin:$PATH"
+# Run the install.sh script with non-interactive environment variables
+# This tests the script as if it were a real installation
+ENV USER_NAME="Test User" \
+    USER_EMAIL="test@example.com"
 
-# Configure chezmoi
-RUN mkdir -p ~/.config/chezmoi && \
-    echo '[data]' > ~/.config/chezmoi/chezmoi.toml && \
-    echo '    name = "Test User"' >> ~/.config/chezmoi/chezmoi.toml && \
-    echo '    email = "test@example.com"' >> ~/.config/chezmoi/chezmoi.toml
-
-# Copy dotfiles to chezmoi source directory
-RUN mkdir -p ~/.local/share/chezmoi && \
-    rsync -a --exclude='.git' --exclude='*.md' --exclude='install.sh' --exclude='test-packages.sh' --exclude='Dockerfile.test' \
-        /home/testuser/dotfiles-src/ ~/.local/share/chezmoi/ && \
-    chmod +x ~/.local/share/chezmoi/.chezmoiscripts/*.tmpl 2>/dev/null || true
-
-# Apply chezmoi dotfiles (this will run the onchange script)
-RUN chezmoi apply -v
+RUN cd /home/testuser/dotfiles && \
+    chmod +x install.sh && \
+    bash -c 'echo "y" | ./install.sh'
 
 CMD ["/bin/zsh"]

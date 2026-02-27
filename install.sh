@@ -59,13 +59,44 @@ install_chezmoi() {
 
     info "Installing chezmoi..."
 
+    local brew_cmd="brew"
+    if is_linux && [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+        brew_cmd="/home/linuxbrew/.linuxbrew/bin/brew"
+    fi
+
     if is_mac && command -v brew >/dev/null; then
         brew install chezmoi
+    elif is_linux && [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+        $brew_cmd install chezmoi
     else
         mkdir -p "$HOME/.local/bin"
         sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
         export PATH="$HOME/.local/bin:$PATH"
     fi
+}
+
+# ============================================================
+# Homebrew helper (macOS)
+# ============================================================
+
+install_brew() {
+    # idempotent installer for Homebrew
+    if command -v brew >/dev/null; then
+        info "Homebrew already installed"
+        return
+    fi
+
+    info "Installing Homebrew..."
+    # the official installation script is idempotent and will
+    # harmlessly exit if brew is already present, but we guard above
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    
+    # On Linux (non-macOS), add Homebrew to PATH
+    if is_linux; then
+        export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
+    fi
+    
+    info "Homebrew installation complete"
 }
 
 # ============================================================
@@ -145,12 +176,14 @@ setup_shell() {
 
     if ! command -v zsh >/dev/null; then
         info "Installing zsh"
-        if is_mac; then
-            brew install zsh
-        else
-            sudo apt-get update
-            sudo apt-get install -y zsh
+        # make sure brew exists before trying to use it
+        install_brew
+        
+        local brew_cmd="brew"
+        if is_linux && [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+            brew_cmd="/home/linuxbrew/.linuxbrew/bin/brew"
         fi
+        $brew_cmd install zsh
     fi
 
     local zsh_path
@@ -160,7 +193,7 @@ setup_shell() {
         echo "$zsh_path" | sudo tee -a /etc/shells >/dev/null
     fi
 
-    sudo chsh -s "$zsh_path" "$USER"
+    sudo chsh -s "$zsh_path" "$(whoami)"
 
     warn "Log out and back in for shell change to take effect"
 }
@@ -172,6 +205,12 @@ main() {
     banner
     info "Detected OS: $(detect_os)"
     echo
+
+    # on macOS and Linux we want Homebrew available before any brew-based
+    # installs. this step is safe to run repeatedly.
+    if is_mac || is_linux; then
+        install_brew
+    fi
 
     install_chezmoi
     configure_chezmoi
