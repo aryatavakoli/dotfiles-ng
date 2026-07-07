@@ -37,6 +37,8 @@ brew "istioctl"
 brew "minikube"
 
 # Infrastructure tools
+tap "hashicorp/tap"
+brew "hashicorp/tap/vault"
 brew "tenv"
 brew "jq"
 brew "yq"
