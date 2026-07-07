@@ -1,2 +1,6 @@
 # Work-specific config (contains internal URLs, credentials context)
 **/work.zsh
+
+# SSH — never commit keys (config is fine, keys are not)
+# SSH keys — never commit (config.tmpl is fine, keys are not)
+private_dot_ssh/id_*

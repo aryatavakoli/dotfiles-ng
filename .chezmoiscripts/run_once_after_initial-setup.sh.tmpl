@@ -33,6 +33,32 @@ setup_zinit() {
 }
 
 # ============================================================
+# SSH Keychain (macOS only)
+# ============================================================
+SSH_KEYS_MISSING=0
+
+setup_ssh_keychain() {
+    if ! is_mac; then return 0; fi
+
+    local added=0
+    for key in "$HOME/.ssh/id_ed25519" "$HOME/.ssh/id_rsa"; do
+        [[ -f "$key" ]] || continue
+        chmod 600 "$key"
+        if ssh-add --apple-use-keychain "$key"; then
+            echo "  ✓ Added $key to Keychain"
+            added=1
+        else
+            echo "  ⚠️  Failed to add $key to Keychain"
+        fi
+    done
+
+    if [[ $added -eq 0 ]]; then
+        echo "  ⚠️  No SSH keys found — skipping"
+        SSH_KEYS_MISSING=1
+    fi
+}
+
+# ============================================================
 # Powerline Fonts (MesloLGS NF)
 # ============================================================
 setup_fonts() {
@@ -92,13 +118,28 @@ main() {
     echo "📦 Setting up Zinit..."
     setup_zinit
     echo ""
-    
+
+    echo "🔑 Setting up SSH Keychain..."
+    setup_ssh_keychain
+    echo ""
+
     echo "🔤 Setting up fonts..."
     setup_fonts
     echo ""
     
     echo "✅ Initial setup complete!"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    if [[ "$SSH_KEYS_MISSING" -eq 1 ]]; then
+        echo ""
+        echo "⚠️  ACTION REQUIRED: No SSH keys were found."
+        echo "   Generate a key and add it to your GitHub/GitLab account:"
+        echo ""
+        echo "   ssh-keygen -t ed25519 -C \"$(git config user.email)\""
+        echo "   ssh-add --apple-use-keychain ~/.ssh/id_ed25519"
+        echo "   pbcopy < ~/.ssh/id_ed25519.pub"
+        echo ""
+    fi
 }
 
 main "$@"

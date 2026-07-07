@@ -12,6 +12,8 @@ Dockerfile
 install.sh
 **/work.zsh
 
+private_dot_ssh/id_*
+
 {{ if ne .chezmoi.os "darwin" }}
 Library/**
 {{ end }}

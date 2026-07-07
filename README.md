@@ -88,8 +88,3 @@ chezmoi apply -v
 rm -rf ~/.local/share/chezmoi ~/.config/chezmoi
 ./install.sh
 ```
-
-**Firefox / cask upgrade conflict:**
-```bash
-rm -rf "/opt/homebrew/Caskroom/firefox/<old-version>"
-```
