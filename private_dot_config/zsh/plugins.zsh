@@ -10,6 +10,11 @@ fi
 
 source "$ZINIT_HOME/zinit.zsh"
 
+# ssh-agent: start agent and load keys on shell startup
+zstyle :omz:plugins:ssh-agent identities id_ed25519 id_rsa
+zstyle :omz:plugins:ssh-agent quiet yes
+[[ "$OSTYPE" == darwin* ]] && zstyle :omz:plugins:ssh-agent ssh-add-args --apple-use-keychain
+
 # ============================================================
 # Extra completion dirs (added to fpath before Zinit runs compinit).
 # Each is a no-op if the directory doesn't exist, so this stays portable.
@@ -35,6 +40,7 @@ zinit wait lucid for \
     OMZL::git.zsh \
     OMZP::git \
     OMZP::kubectl \
+    OMZP::ssh-agent \
     OMZP::brew \
     OMZP::command-not-found \
     OMZP::colored-man-pages \
