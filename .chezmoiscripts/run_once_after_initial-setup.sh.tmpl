@@ -33,38 +33,11 @@ setup_zinit() {
 }
 
 # ============================================================
-# SSH Keychain (macOS only)
-# ============================================================
-SSH_KEYS_MISSING=0
-
-setup_ssh_keychain() {
-    if ! is_mac; then return 0; fi
-
-    local added=0
-    for key in "$HOME/.ssh/id_ed25519" "$HOME/.ssh/id_rsa"; do
-        [[ -f "$key" ]] || continue
-        chmod 600 "$key"
-        if ssh-add --apple-use-keychain "$key"; then
-            echo "  ✓ Added $key to Keychain"
-            added=1
-        else
-            echo "  ⚠️  Failed to add $key to Keychain"
-        fi
-    done
-
-    if [[ $added -eq 0 ]]; then
-        echo "  ⚠️  No SSH keys found — skipping"
-        SSH_KEYS_MISSING=1
-    fi
-}
-
-# ============================================================
 # Powerline Fonts (MesloLGS NF)
 # ============================================================
 setup_fonts() {
     local font_dir
-    
-    # Determine font directory based on OS
+
     if is_mac; then
         font_dir="$HOME/Library/Fonts"
     elif is_linux; then
@@ -73,36 +46,33 @@ setup_fonts() {
         echo "  ⚠️  Unknown OS, skipping font installation"
         return 0
     fi
-    
-    # Check if fonts are already installed
+
     if [[ -f "$font_dir/MesloLGS NF Regular.ttf" ]]; then
         echo "  ✓ MesloLGS NF fonts already installed"
         return 0
     fi
-    
+
     echo "  → Installing MesloLGS NF fonts for Powerlevel10k..."
     mkdir -p "$font_dir"
-    
+
     local base_url="https://github.com/romkatv/powerlevel10k-media/raw/master"
     local variants=("Regular" "Bold" "Italic" "Bold Italic")
-    
+
     for variant in "${variants[@]}"; do
         local filename="MesloLGS NF ${variant}.ttf"
         local url="${base_url}/${filename// /%20}"
-        
         if curl -fsSL "$url" -o "$font_dir/$filename"; then
             echo "    ✓ Installed $filename"
         else
             echo "    ⚠️  Failed to download $filename"
         fi
     done
-    
-    # Refresh font cache on Linux
+
     if is_linux && command -v fc-cache &>/dev/null; then
         echo "  → Refreshing font cache..."
         fc-cache -f "$font_dir" 2>/dev/null || true
     fi
-    
+
     echo "  ✓ Font installation complete"
 }
 
@@ -114,33 +84,27 @@ main() {
     echo "  Initial Setup (runs once)"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
-    
+
     echo "📦 Setting up Zinit..."
     setup_zinit
-    echo ""
-
-    echo "🔑 Setting up SSH Keychain..."
-    setup_ssh_keychain
     echo ""
 
     echo "🔤 Setting up fonts..."
     setup_fonts
     echo ""
-    
+
     echo "✅ Initial setup complete!"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-    if [[ "$SSH_KEYS_MISSING" -eq 1 ]]; then
+    if is_mac && ! ls "$HOME/.ssh/id_ed25519" "$HOME/.ssh/id_rsa" &>/dev/null; then
         echo ""
-        echo "⚠️  ACTION REQUIRED: No SSH keys were found."
-        echo "   Generate a key and add it to your GitHub/GitLab account:"
+        echo "⚠️  ACTION REQUIRED: No SSH keys found."
+        echo "   Generate a key and add it to GitHub/GitLab:"
         echo ""
-        echo "   ssh-keygen -t ed25519 -C \"$(git config user.email)\""
-        echo "   ssh-add --apple-use-keychain ~/.ssh/id_ed25519"
-        echo "   pbcopy < ~/.ssh/id_ed25519.pub"
+        echo "   ssh-keygen -t ed25519 -C \"$(git config user.email 2>/dev/null)\""
+        echo "   pbcopy < ~/.ssh/id_ed25519.pub  # paste at github.com/settings/keys"
         echo ""
     fi
 }
 
 main "$@"
-
