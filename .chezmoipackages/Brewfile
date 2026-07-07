@@ -1,7 +1,3 @@
-# Third-party taps
-tap "derailed/k9s"
-tap "hashicorp/tap"
-
 # Essential tools
 brew "nano"
 brew "coreutils"
@@ -34,15 +30,13 @@ brew "krew"
 brew "kubectx"
 brew "helm"
 brew "kubeseal"
-brew "derailed/k9s/k9s"
+brew "k9s"
 brew "kustomize"
 brew "argocd"
 brew "istioctl"
 brew "minikube"
 
 # Infrastructure tools
-brew "hashicorp/tap/packer"
-brew "hashicorp/tap/vault"
 brew "tenv"
 brew "jq"
 brew "yq"
