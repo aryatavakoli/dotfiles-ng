@@ -1,0 +1,81 @@
+# Third-party taps
+tap "derailed/k9s"
+tap "hashicorp/tap"
+
+# Essential tools
+brew "nano"
+brew "coreutils"
+brew "git"
+brew "gh"
+brew "chezmoi"
+brew "wget"
+
+# Shell enhancements
+brew "tree"
+brew "bat"
+brew "fd"
+brew "fzf"
+brew "eza"
+brew "mcfly"
+brew "zoxide"
+
+# Network tools
+brew "curl"
+brew "curlie"
+brew "doggo"
+brew "awscli"
+brew "nmap"
+brew "websocat"
+brew "grpcurl"
+
+# Kubernetes tools
+brew "kubectl"
+brew "krew"
+brew "kubectx"
+brew "helm"
+brew "kubeseal"
+brew "derailed/k9s/k9s"
+brew "kustomize"
+brew "argocd"
+brew "istioctl"
+brew "minikube"
+
+# Infrastructure tools
+brew "hashicorp/tap/packer"
+brew "hashicorp/tap/vault"
+brew "tenv"
+brew "jq"
+brew "yq"
+brew "gomplate"
+
+# Languages & runtimes
+brew "go"
+brew "node"
+brew "pipx"
+
+# Data stores & services
+brew "redis"
+brew "prometheus"
+
+# Search
+brew "ripgrep"
+
+# Casks (macOS only — ignored on Linux)
+cask "iterm2"
+cask "docker-desktop"
+cask "visual-studio-code"
+cask "firefox"
+cask "spotify"
+cask "vlc"
+cask "caffeine"
+
+# VS Code extensions
+vscode "eamodio.gitlens"
+vscode "redhat.vscode-yaml"
+vscode "hashicorp.terraform"
+vscode "ms-vscode-remote.vscode-remote-extensionpack"
+vscode "ms-vscode-remote.remote-ssh"
+vscode "ms-azuretools.vscode-docker"
+vscode "ms-azuretools.vscode-containers"
+vscode "oderwat.indent-rainbow"
+vscode "anthropic.claude-code"

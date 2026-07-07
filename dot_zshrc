@@ -12,26 +12,29 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
 fi
 
 # ============================================================
-# Environment & PATH (load before plugins)
+# PATH & Environment (PATH first so tool-detection checks in env.zsh work)
 # ============================================================
-[[ -f ~/.config/zsh/env.zsh ]] && source ~/.config/zsh/env.zsh
 [[ -f ~/.config/zsh/path.zsh ]] && source ~/.config/zsh/path.zsh
+[[ -f ~/.config/zsh/env.zsh ]] && source ~/.config/zsh/env.zsh
 
 # ============================================================
-# Antigen Plugin Manager
+# Zinit Plugin Manager
 # ============================================================
-ANTIGEN_PATH="$HOME/.local/share/antigen/antigen.zsh"
-if [[ -f "$ANTIGEN_PATH" ]]; then
-    source "$ANTIGEN_PATH"
-    # Load antigen configuration
-    [[ -f ~/.config/zsh/antigen.zsh ]] && source ~/.config/zsh/antigen.zsh
-else
-    echo "⚠ Antigen not found. Run: chezmoi apply -v"
-fi
+[[ -f ~/.config/zsh/plugins.zsh ]] && source ~/.config/zsh/plugins.zsh
 
 # ============================================================
 # Additional Configuration (aliases, functions, p10k)
 # ============================================================
 [[ -f ~/.config/zsh/aliases.zsh ]] && source ~/.config/zsh/aliases.zsh
 [[ -f ~/.config/zsh/functions.zsh ]] && source ~/.config/zsh/functions.zsh
+[[ -f ~/.config/zsh/work.zsh ]] && source ~/.config/zsh/work.zsh
 [[ -f ~/.config/zsh/p10k.zsh ]] && source ~/.config/zsh/p10k.zsh
+
+# ============================================================
+# Interactive tool init (mcfly, fzf, zoxide) — must be LAST
+# ============================================================
+[[ -f ~/.config/zsh/interactive.zsh ]] && source ~/.config/zsh/interactive.zsh
+
+# Reset exit code so p10k doesn't show a spurious ✗ from Zinit's
+# background plugin loading completing after the first prompt.
+true

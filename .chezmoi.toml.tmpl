@@ -12,5 +12,9 @@
     command = "vimdiff"
 
 [edit]
+{{- if and (eq .chezmoi.os "darwin") (lookPath "code") }}
     command = "code"
     args = ["--wait"]
+{{- else }}
+    command = {{ env "EDITOR" | default "nano" | quote }}
+{{- end }}

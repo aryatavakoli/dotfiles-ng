@@ -1,0 +1,22 @@
+# Auto detect text files and normalize line endings
+* text=auto
+
+# Denote binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.gz binary
+*.zip binary
+*.tar binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+
+# Diff helpers
+*.md diff=markdown
+*.rb diff=ruby
+*.go diff=golang

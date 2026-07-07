@@ -10,6 +10,7 @@ LICENSE
 # Development and testing
 Dockerfile
 install.sh
+**/work.zsh
 
 {{ if ne .chezmoi.os "darwin" }}
 Library/**

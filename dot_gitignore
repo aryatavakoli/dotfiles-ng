@@ -1,0 +1,44 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Editors
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# Node
+node_modules/
+dist/
+.npm/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Go
+*.test
+*.out
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log

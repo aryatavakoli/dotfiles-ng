@@ -1,34 +1,35 @@
-FROM ubuntu:latest
+FROM ubuntu:22.04
 
-# Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install minimal dependencies needed for install.sh to work
-# (mimicking a fresh machine)
 RUN apt-get update && apt-get install -y \
     curl \
     git \
     sudo \
     build-essential \
-    && rm -rf /var/lib/apt/lists/*
+    file \
+    procps \
+    locales \
+    zsh \
+    && rm -rf /var/lib/apt/lists/* \
+    && locale-gen en_US.UTF-8
 
-# Create a test user with sudo privileges (no password)
-RUN useradd -m -s /bin/bash testuser && \
+ENV LANG=en_US.UTF-8
+
+RUN useradd -m -s /bin/zsh testuser && \
     echo "testuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 USER testuser
 WORKDIR /home/testuser
 
-# Copy the entire dotfiles repo
 COPY --chown=testuser:testuser . /home/testuser/dotfiles/
 
-# Run the install.sh script with non-interactive environment variables
-# This tests the script as if it were a real installation
 ENV USER_NAME="Test User" \
-    USER_EMAIL="test@example.com"
+    USER_EMAIL="test@example.com" \
+    NONINTERACTIVE=1
 
 RUN cd /home/testuser/dotfiles && \
     chmod +x install.sh && \
-    bash -c 'echo "y" | ./install.sh'
+    ./install.sh --force
 
-CMD ["/bin/zsh"]
+CMD ["/bin/zsh", "-l"]

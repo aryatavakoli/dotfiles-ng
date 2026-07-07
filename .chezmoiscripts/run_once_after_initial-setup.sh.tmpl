@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-time initial setup: Antigen plugin manager & Powerline fonts
+# One-time initial setup: Zinit plugin manager & Powerline fonts
 # This script runs only once after the first chezmoi apply
 
 set -e
@@ -11,24 +11,23 @@ is_mac() { [[ "$OSTYPE" == "darwin"* ]]; }
 is_linux() { [[ "$OSTYPE" == "linux"* ]]; }
 
 # ============================================================
-# Antigen Plugin Manager
+# Zinit Plugin Manager
 # ============================================================
-setup_antigen() {
-    local antigen_dir="$HOME/.local/share/antigen"
-    local antigen_file="$antigen_dir/antigen.zsh"
-    
-    if [[ -f "$antigen_file" ]]; then
-        echo "  ✓ Antigen already installed"
+setup_zinit() {
+    local zinit_home="${XDG_DATA_HOME:-$HOME/.local/share}/zinit/zinit.git"
+
+    if [[ -d "$zinit_home/.git" ]]; then
+        echo "  ✓ Zinit already installed"
         return 0
     fi
-    
-    echo "  → Installing Antigen plugin manager..."
-    mkdir -p "$antigen_dir"
-    
-    if curl -fsSL git.io/antigen > "$antigen_file"; then
-        echo "  ✓ Antigen installed successfully"
+
+    echo "  → Installing Zinit plugin manager..."
+    mkdir -p "$(dirname "$zinit_home")"
+
+    if git clone --depth=1 https://github.com/zdharma-continuum/zinit.git "$zinit_home"; then
+        echo "  ✓ Zinit installed successfully"
     else
-        echo "  ⚠️  Failed to install Antigen"
+        echo "  ⚠️  Failed to install Zinit"
         return 1
     fi
 }
@@ -90,8 +89,8 @@ main() {
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     
-    echo "📦 Setting up Antigen..."
-    setup_antigen
+    echo "📦 Setting up Zinit..."
+    setup_zinit
     echo ""
     
     echo "🔤 Setting up fonts..."

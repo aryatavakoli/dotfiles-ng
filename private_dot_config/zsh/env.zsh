@@ -16,7 +16,6 @@ setopt EXTENDED_HISTORY
 setopt HIST_EXPIRE_DUPS_FIRST
 setopt HIST_FIND_NO_DUPS
 setopt HIST_IGNORE_ALL_DUPS
-setopt HIST_IGNORE_DUPS
 setopt HIST_IGNORE_SPACE
 setopt HIST_SAVE_NO_DUPS
 setopt HIST_VERIFY
@@ -28,14 +27,14 @@ export CLICOLOR=1
 export LSCOLORS="ExGxBxDxCxEgEdxbxgxcxd"
 export LESS="-R -M -i -j10"
 export LESSHISTFILE="-"
+export BAT_THEME="ansi"
 
-# Performance: Skip compinit until antigen runs
+# Performance: skip the global compinit; Zinit runs compinit itself (see plugins.zsh)
 skip_global_compinit=1
 
 # Tools
 export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
-export TENV_ARCH=amd64
 export TENV_AUTO_INSTALL=true
-export GODEBUG=asyncpreemptoff=1
-export ZOXIDE_CMD_OVERRIDE=cd
 
+# Interactive tool init (mcfly, fzf, zoxide) lives in interactive.zsh,
+# which is sourced last so plugins don't clobber their key bindings.

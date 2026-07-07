@@ -1,0 +1,3 @@
+# Files chezmoi should delete from the target on apply.
+# Migrated from Antigen to Zinit: the old plugin config is now plugins.zsh.
+.config/zsh/antigen.zsh

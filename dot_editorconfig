@@ -6,3 +6,17 @@ indent_style = tab
 end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
+
+# YAML/JSON forbid or conventionally avoid tabs — use 2-space indent
+[*.{yml,yaml,json,md}]
+indent_style = space
+indent_size = 2
+
+# Python conventionally uses 4-space indent (PEP 8)
+[*.py]
+indent_style = space
+indent_size = 4
+
+# Markdown: trailing whitespace is significant (line breaks)
+[*.md]
+trim_trailing_whitespace = false

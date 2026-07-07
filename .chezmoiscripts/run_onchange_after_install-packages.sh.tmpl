@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# Runs whenever the Brewfile changes to keep installed packages in sync
+# Brewfile hash: {{ include ".chezmoipackages/Brewfile" | sha256sum }}
+
+set -euo pipefail
+
+BREWFILE="{{ .chezmoi.sourceDir }}/.chezmoipackages/Brewfile"
+LOG_FILE="$HOME/.cache/chezmoi-packages/bundle.log"
+mkdir -p "$(dirname "$LOG_FILE")"
+
+# ============================================================
+# Helpers
+# ============================================================
+is_mac() { [[ "$OSTYPE" == darwin* ]]; }
+
+info() { echo "  > $*"; }
+warn() { echo "  ! $*"; }
+
+# ============================================================
+# Ensure Homebrew is available
+# ============================================================
+if ! command -v brew &>/dev/null; then
+    if [[ -x /opt/homebrew/bin/brew ]]; then
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+    elif [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+    else
+        warn "Homebrew not found, skipping package sync"
+        exit 0
+    fi
+fi
+
+# ============================================================
+# Main
+# ============================================================
+echo "  Package Sync (brew bundle)"
+echo ""
+
+if [[ ! -f "$BREWFILE" ]]; then
+    warn "Brewfile not found at $BREWFILE"
+    exit 0
+fi
+
+# stdout goes to both console and LOG_FILE; stderr stays on the terminal
+# so that password prompts (sudo, brew) remain visible and interactive.
+exec > >(tee "$LOG_FILE")
+
+# --no-upgrade: don't auto-upgrade existing installs; use DOTFILES_UPGRADE=1 for that.
+BUNDLE_ARGS=(--file="$BREWFILE" --no-upgrade)
+
+# On Linux, skip casks and vscode extensions (--no-cask/--no-vscode were
+# removed in Homebrew 6.x; the env-var equivalents still work).
+if ! is_mac; then
+    export HOMEBREW_BUNDLE_NO_CASK=1
+    export HOMEBREW_BUNDLE_NO_VSCODE=1
+fi
+
+# ------------------------------------------------------------
+# Fast path: nothing to do if everything is already installed
+# ------------------------------------------------------------
+if brew bundle check "${BUNDLE_ARGS[@]}" &>/dev/null; then
+    info "All packages already satisfied — nothing to install"
+else
+    info "Installing packages from Brewfile..."
+    if brew bundle "${BUNDLE_ARGS[@]}"; then
+        info "Package install complete"
+    else
+        warn "Some packages failed to install (see $LOG_FILE)"
+    fi
+fi
+
+# ------------------------------------------------------------
+# Opt-in upgrade: DOTFILES_UPGRADE=1 to bump already-installed formulae
+# ------------------------------------------------------------
+if [[ "${DOTFILES_UPGRADE:-0}" == "1" ]]; then
+    info "DOTFILES_UPGRADE=1 — upgrading outdated packages..."
+    brew upgrade || warn "Some upgrades failed (see $LOG_FILE)"
+fi
+
+# ------------------------------------------------------------
+# Opt-in prune: DOTFILES_PRUNE=1 to remove packages not in the Brewfile.
+# Off by default so a plain apply is purely additive and never uninstalls
+# anything you installed manually. Use `dot-pkg-sync` for a deliberate prune.
+# ------------------------------------------------------------
+if [[ "${DOTFILES_PRUNE:-0}" == "1" ]]; then
+    info "DOTFILES_PRUNE=1 — removing packages not in Brewfile..."
+    brew bundle cleanup "${BUNDLE_ARGS[@]}" --force || true
+    brew autoremove 2>/dev/null || true
+else
+    # Non-destructive audit: report what a prune *would* remove, no changes made.
+    if ! brew bundle cleanup "${BUNDLE_ARGS[@]}" &>/dev/null; then
+        warn "Packages exist that are not in the Brewfile."
+        warn "Run 'dot-pkg-sync' (or DOTFILES_PRUNE=1 dot-apply) to remove them."
+    fi
+fi
+
+echo ""
+info "Done"

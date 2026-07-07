@@ -1,18 +1,25 @@
 #!/usr/bin/env bash
-# Dotfiles installer for macOS, Linux, and WSL (SAFE VERSION)
+# Dotfiles installer for macOS, Linux, and WSL
 set -euo pipefail
 
 # ============================================================
 # Guards
 # ============================================================
 if [[ "$(id -u)" -eq 0 ]]; then
-    echo "✗ Do not run this script as root"
+    echo "Do not run this script as root"
     exit 1
 fi
 
 # ============================================================
 # Configuration
 # ============================================================
+FORCE="${NONINTERACTIVE:-false}"
+for arg in "$@"; do
+    case "$arg" in
+        --force|-f) FORCE=true ;;
+    esac
+done
+
 USER_NAME="${USER_NAME:-}"
 USER_EMAIL="${USER_EMAIL:-}"
 
@@ -22,15 +29,13 @@ USER_EMAIL="${USER_EMAIL:-}"
 C_RED='\033[0;31m'; C_GREEN='\033[0;32m'; C_YELLOW='\033[1;33m'
 C_BLUE='\033[0;34m'; C_NC='\033[0m'
 
-info()  { echo -e "${C_GREEN}▸${C_NC} $*"; }
-warn()  { echo -e "${C_YELLOW}⚠${C_NC} $*"; }
-error() { echo -e "${C_RED}✗${C_NC} $*"; exit 1; }
+info()  { echo -e "${C_GREEN}>${C_NC} $*"; }
+warn()  { echo -e "${C_YELLOW}!${C_NC} $*"; }
+error() { echo -e "${C_RED}x${C_NC} $*"; exit 1; }
 
 banner() {
     echo -e "${C_BLUE}"
-    echo "┌────────────────────────────────────┐"
-    echo "│   Dotfiles Installation (Chezmoi)  │"
-    echo "└────────────────────────────────────┘"
+    echo "  Dotfiles Installation (Chezmoi)"
     echo -e "${C_NC}"
 }
 
@@ -50,6 +55,27 @@ detect_os() {
 }
 
 # ============================================================
+# Install Homebrew
+# ============================================================
+install_brew() {
+    if command -v brew >/dev/null; then
+        info "Homebrew already installed"
+        return
+    fi
+
+    info "Installing Homebrew..."
+    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+    if is_mac && [[ -x /opt/homebrew/bin/brew ]]; then
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+    elif is_linux && [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+    fi
+
+    info "Homebrew installation complete"
+}
+
+# ============================================================
 # Install chezmoi
 # ============================================================
 install_chezmoi() {
@@ -59,44 +85,13 @@ install_chezmoi() {
 
     info "Installing chezmoi..."
 
-    local brew_cmd="brew"
-    if is_linux && [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
-        brew_cmd="/home/linuxbrew/.linuxbrew/bin/brew"
-    fi
-
-    if is_mac && command -v brew >/dev/null; then
+    if command -v brew >/dev/null; then
         brew install chezmoi
-    elif is_linux && [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
-        $brew_cmd install chezmoi
     else
         mkdir -p "$HOME/.local/bin"
         sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
         export PATH="$HOME/.local/bin:$PATH"
     fi
-}
-
-# ============================================================
-# Homebrew helper (macOS)
-# ============================================================
-
-install_brew() {
-    # idempotent installer for Homebrew
-    if command -v brew >/dev/null; then
-        info "Homebrew already installed"
-        return
-    fi
-
-    info "Installing Homebrew..."
-    # the official installation script is idempotent and will
-    # harmlessly exit if brew is already present, but we guard above
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    
-    # On Linux (non-macOS), add Homebrew to PATH
-    if is_linux; then
-        export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
-    fi
-    
-    info "Homebrew installation complete"
 }
 
 # ============================================================
@@ -110,8 +105,14 @@ configure_chezmoi() {
         return
     fi
 
-    [[ -z "$USER_NAME"  ]] && read -rp "Name: "  USER_NAME
-    [[ -z "$USER_EMAIL" ]] && read -rp "Email: " USER_EMAIL
+    if [[ "$FORCE" != true ]]; then
+        [[ -z "$USER_NAME"  ]] && read -rp "Name: "  USER_NAME
+        [[ -z "$USER_EMAIL" ]] && read -rp "Email: " USER_EMAIL
+    fi
+
+    if [[ -z "$USER_NAME" || -z "$USER_EMAIL" ]]; then
+        error "USER_NAME and USER_EMAIL must be set (or use interactive mode)"
+    fi
 
     mkdir -p "$(dirname "$cfg")"
 
@@ -125,12 +126,29 @@ EOF
 }
 
 # ============================================================
-# Copy dotfiles (NO SUDO)
+# Copy dotfiles
 # ============================================================
 copy_dotfiles() {
     local src dest
     src="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     dest="$HOME/.local/share/chezmoi"
+
+    # Nothing to do if we're already running from the chezmoi source dir.
+    if [[ "$src" == "$dest" ]]; then
+        info "Already running from chezmoi source dir; skipping copy"
+        return
+    fi
+
+    # Guard against clobbering an existing source dir that has local work.
+    if [[ -d "$dest/.git" && "$FORCE" != true ]]; then
+        if ! git -C "$dest" diff --quiet --ignore-submodules HEAD 2>/dev/null \
+           || [[ -n "$(git -C "$dest" status --porcelain 2>/dev/null)" ]]; then
+            warn "$dest has uncommitted changes and would be overwritten."
+            read -rp "Overwrite it anyway? (y/n) " -n 1
+            echo
+            [[ "$REPLY" =~ ^[Yy]$ ]] || error "Aborted to protect local changes in $dest"
+        fi
+    fi
 
     info "Installing dotfiles to $dest"
 
@@ -152,48 +170,49 @@ apply_dotfiles() {
     info "Initializing chezmoi from local source"
     chezmoi init --force --source="$HOME/.local/share/chezmoi"
 
-    echo
-    info "Previewing changes"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    chezmoi diff || true
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo
+    if [[ "$FORCE" != true ]]; then
+        echo
+        info "Previewing changes"
+        chezmoi diff | cat || true
+        echo
 
-    read -rp "Apply changes? (y/n) " -n 1
-    echo
-    [[ "$REPLY" =~ ^[Yy]$ ]] || { warn "Skipped"; return; }
+        read -rp "Apply changes? (y/n) " -n 1
+        echo
+        [[ "$REPLY" =~ ^[Yy]$ ]] || { warn "Skipped"; return; }
+    fi
 
     chezmoi apply -v
 }
 
 # ============================================================
-# Setup shell (system changes only here)
+# Setup shell
 # ============================================================
 setup_shell() {
     [[ "$SHELL" == *zsh ]] && return
 
-    info "Configuring zsh"
+    info "Configuring zsh as default shell"
 
     if ! command -v zsh >/dev/null; then
-        info "Installing zsh"
-        # make sure brew exists before trying to use it
-        install_brew
-        
-        local brew_cmd="brew"
-        if is_linux && [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
-            brew_cmd="/home/linuxbrew/.linuxbrew/bin/brew"
+        if command -v brew >/dev/null; then
+            brew install zsh
+        else
+            error "zsh not found and no package manager available"
         fi
-        $brew_cmd install zsh
     fi
 
     local zsh_path
     zsh_path="$(command -v zsh)"
 
-    if ! grep -qxF "$zsh_path" /etc/shells; then
+    if ! grep -qxF "$zsh_path" /etc/shells 2>/dev/null; then
         echo "$zsh_path" | sudo tee -a /etc/shells >/dev/null
     fi
 
-    sudo chsh -s "$zsh_path" "$(whoami)"
+    if [[ "$FORCE" == true ]]; then
+        sudo chsh -s "$zsh_path" "$(whoami)" 2>/dev/null || \
+            warn "Could not change shell (likely running in container)"
+    else
+        sudo chsh -s "$zsh_path" "$(whoami)"
+    fi
 
     warn "Log out and back in for shell change to take effect"
 }
@@ -206,12 +225,7 @@ main() {
     info "Detected OS: $(detect_os)"
     echo
 
-    # on macOS and Linux we want Homebrew available before any brew-based
-    # installs. this step is safe to run repeatedly.
-    if is_mac || is_linux; then
-        install_brew
-    fi
-
+    install_brew
     install_chezmoi
     configure_chezmoi
     copy_dotfiles
@@ -219,7 +233,7 @@ main() {
     setup_shell
 
     echo
-    info "✓ Setup complete"
+    info "Setup complete"
     echo
 }
 

@@ -18,17 +18,25 @@
 [branch]
 	sort = -committerdate
 
+[column]
+	ui = auto
+
 [commit]
 	gpgsign = false
 
 [diff]
 	renames = copies
+	algorithm = histogram
 
 [diff "bin"]
 	textconv = hexdump -v -C
 
+[fetch]
+	prune = true
+
 [merge]
 	log = true
+	conflictstyle = zdiff3
 
 [pull]
 	rebase = true
@@ -38,36 +46,28 @@
 	followTags = true
 	autoSetupRemote = true
 
+[rebase]
+	autoStash = true
+
+[rerere]
+	enabled = true
+
 [help]
 	autocorrect = 1
 
 [alias]
-	# Short status
 	s = status -sb
-	
-	# Commit
 	c = commit
 	cm = commit -m
 	ca = commit --amend
-	
-	# Checkout
 	co = checkout
 	cob = checkout -b
-	
-	# Branch
 	br = branch
 	brd = branch -d
-	
-	# Log
 	l = log --oneline --graph --decorate
 	la = log --oneline --graph --decorate --all
-	
-	# Diff
 	d = diff
 	ds = diff --staged
-	
-	# Stash
 	st = stash
 	stp = stash pop
 	stl = stash list
-
