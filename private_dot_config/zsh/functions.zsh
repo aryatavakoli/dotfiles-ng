@@ -168,24 +168,25 @@ dot-pkg-sync() {
         return 1
     fi
 
-    local args=(--file="$brewfile" --no-upgrade)
+    local install_args=(--file="$brewfile" --no-upgrade)
+    local cleanup_args=(--file="$brewfile")
     if [[ "$OSTYPE" != darwin* ]]; then
         export HOMEBREW_BUNDLE_NO_CASK=1
         export HOMEBREW_BUNDLE_NO_VSCODE=1
     fi
 
     echo "Installing anything missing from the Brewfile..."
-    brew bundle "${args[@]}"
+    brew bundle "${install_args[@]}"
 
     echo
     echo "The following would be removed (not in the Brewfile):"
-    brew bundle cleanup "${args[@]}" || true
+    brew bundle cleanup "${cleanup_args[@]}" || true
 
     echo
     read -q "REPLY?Remove these packages? (y/n) "
     echo
     if [[ "$REPLY" == [Yy] ]]; then
-        brew bundle cleanup "${args[@]}" --force
+        brew bundle cleanup "${cleanup_args[@]}" --force
         brew autoremove 2>/dev/null || true
         echo "Prune complete."
     else
