@@ -96,7 +96,7 @@ main() {
     echo "✅ Initial setup complete!"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-    if is_mac && ! ls "$HOME/.ssh/id_ed25519" "$HOME/.ssh/id_rsa" &>/dev/null; then
+    if is_mac && ! { [[ -f "$HOME/.ssh/id_ed25519" ]] || [[ -f "$HOME/.ssh/id_rsa" ]]; }; then
         echo ""
         echo "⚠️  ACTION REQUIRED: No SSH keys found."
         echo "   Generate a key and add it to GitHub/GitLab:"
